@@ -12,6 +12,11 @@ app.get("/health", (req, res) => {
     res.status(200).send("OK");
 });
 
+app.get("/documents",async(req,res) => {
+    const result = await pool.query('SELECT * FROM documents')
+    res.json(result.rows)
+});
+
 app.listen(port,() => {
     console.log(`Server is running on port ${port}`);
 });
