@@ -10,7 +10,14 @@ const upload = multer({
 
 const express = require('express');
 const app = express();
-const port = 3000;
+const cors = require('cors')
+var corsOptions = {
+    origin:"http://localhost:3000"
+}
+app.use(cors(corsOptions))
+
+
+const port = 3001;
 
 
 const pool = new Pool({connectionString: process.env.DATABASE_URL});
