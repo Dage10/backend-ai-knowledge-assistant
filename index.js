@@ -16,6 +16,7 @@ const cors = require('cors')
 var corsOptions = {
     origin:"http://localhost:3000"
 }
+app.use(express.json())
 app.use(cors(corsOptions))
 
 
@@ -69,6 +70,61 @@ app.post("/documents/upload", upload.single("file"), async (req, res) => {
         console.error(err);
         res.status(500).send("Error uploading file");
     }
+});
+
+app.post("/ask",async(req,res) => {
+    try {
+        const question = req.body.question
+        if (!question) {
+            return res.status(400).json({error: "Question is required"});
+        }
+
+        const embeddingPregunta = await generateEmbedding(question)
+
+        const vectorString = `[${embeddingPregunta.join(",")}]`
+
+        const chunkResult = await pool.query(`SELECT id, content, chunk_index
+                                              FROM chunks
+                                              ORDER BY embedding <=> $1
+                                                  LIMIT 5;`, [vectorString])
+
+        const chunks = chunkResult.rows
+
+
+        let context = "";
+
+        for (let chunk of chunks) {
+            context += `--- Chunk ${chunk.chunk_index} ---\n${chunk.content}\n\n`;
+        }
+
+        const prompt =
+            "You are an assistant that answers questions ONLY using the provided context.\n" +
+            "If the answer is not in the context, reply: \"I didn't find information about this in the document.\"\n" +
+            "Do not use external knowledge.\n" +
+            "Respond in the same language as the user.\n\n" +
+            "Context:\n" +
+            context +
+            "\nUser question:\n" +
+            question;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt
+        });
+
+        const answer = response.candidates[0].content.parts[0].text;
+
+        res.json({
+            answer: answer,
+            sources: chunks
+        });
+    }catch (err){
+        console.error(err);
+        res.status(500).json({ error: "Error processing question" });
+    }
+
+
+
 });
 
 
