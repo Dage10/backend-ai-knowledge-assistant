@@ -2,6 +2,7 @@ require('dotenv').config();
 const {Pool} = require('pg');
 const {PDFParse} = require('pdf-parse');
 const {GoogleGenAI} = require('@google/genai');
+const rateLimit = require("express-rate-limit");
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 const multer = require('multer');
 const upload = multer({
@@ -9,11 +10,15 @@ const upload = multer({
        fileSize: 10 * 1024 * 1024
    }
 });
+const askLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10
+});
 
 const express = require('express');
 const app = express();
 const cors = require('cors')
-var corsOptions = {
+const corsOptions = {
     origin:"http://localhost:3000"
 }
 app.use(express.json())
@@ -72,11 +77,27 @@ app.post("/documents/upload", upload.single("file"), async (req, res) => {
     }
 });
 
-app.post("/ask",async(req,res) => {
+app.post("/ask",askLimiter,async(req,res) => {
     try {
-        const question = req.body.question
-        if (!question) {
-            return res.status(400).json({error: "Question is required"});
+
+        const { question } = req.body;
+
+        if (typeof question !== "string") {
+            return res.status(400).json({
+                error: "Question must be a string"
+            });
+        }
+
+        if (!question || question.trim().length === 0) {
+            return res.status(400).json({
+                error: "Question is required"
+            });
+        }
+
+        if (question.length > 500) {
+            return res.status(400).json({
+                error: "Question is too long"
+            });
         }
 
         const embeddingPregunta = await generateEmbedding(question)
@@ -112,7 +133,9 @@ app.post("/ask",async(req,res) => {
             contents: prompt
         });
 
-        const answer = response.candidates[0].content.parts[0].text;
+        const answer =
+            response.candidates?.[0]?.content?.parts?.[0]?.text ??
+            "No response generated.";
 
         res.json({
             answer: answer,
