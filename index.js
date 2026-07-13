@@ -35,8 +35,15 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/documents",async(req,res) => {
-    const result = await pool.query('SELECT * FROM documents');
-    res.json(result.rows);
+    try {
+        const result = await pool.query('SELECT * FROM documents');
+        res.json(result.rows);
+    }catch (err) {
+        console.error(err);
+        res.status(500).json({
+            error: "Error loading documents"
+        });
+    }
 });
 
 app.post("/documents/upload", upload.single("file"), async (req, res) => {
@@ -104,7 +111,7 @@ app.post("/ask",askLimiter,async(req,res) => {
 
         const vectorString = `[${embeddingPregunta.join(",")}]`
 
-        const chunkResult = await pool.query(`SELECT id, content, chunk_index
+        const chunkResult = await pool.query(`SELECT id, document_id, content, chunk_index
                                               FROM chunks
                                               ORDER BY embedding <=> $1
                                                   LIMIT 5;`, [vectorString])
@@ -137,6 +144,16 @@ app.post("/ask",askLimiter,async(req,res) => {
             response.candidates?.[0]?.content?.parts?.[0]?.text ??
             "No response generated.";
 
+        await pool.query(
+            `INSERT INTO conversations (document_id, question, answer)
+             VALUES ($1, $2, $3)`,
+            [
+                chunks.length > 0 ? chunks[0].document_id : null,
+                question,
+                answer
+            ]
+        );
+
         res.json({
             answer: answer,
             sources: chunks
@@ -150,15 +167,40 @@ app.post("/ask",askLimiter,async(req,res) => {
 
 });
 
+app.get("/conversations",async(req,res) => {
 
-app.listen(port,() => {
-    console.log(`Server is running on port ${port}`);
+    try{
+        const result = await pool.query(`
+            SELECT *
+            FROM conversations
+            ORDER BY created_at ASC
+        `);
+
+        res.json(result.rows);
+
+    }catch(err){
+        console.error(err);
+        res.status(500).json({
+            error: "Error loading conversations"
+        });
+    }
+
 });
 
 const testConnection = async () => {
     await pool.query('SELECT NOW()');
     console.log("Connected to Neon");
 };
+
+async function startServer() {
+    await testConnection();
+
+    app.listen(port, () => {
+        console.log(`Server is running on port ${port}`);
+    });
+}
+
+startServer().catch(console.error);
 
 function chunkText(text,chunkSize,overlap){
 
@@ -190,5 +232,3 @@ async function generateEmbedding(text){
     return response.embeddings[0].values;
 
 }
-
-testConnection();
