@@ -2,6 +2,7 @@ require('dotenv').config();
 const {Pool} = require('pg');
 const {PDFParse} = require('pdf-parse');
 const {GoogleGenAI} = require('@google/genai');
+const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 const multer = require('multer');
@@ -21,7 +22,9 @@ const cors = require('cors')
 const corsOptions = {
     origin:"http://localhost:3000"
 }
-app.use(express.json())
+app.use(express.json({
+    limit: "1mb"
+}));
 app.use(cors(corsOptions))
 
 
@@ -36,7 +39,11 @@ app.get("/health", (req, res) => {
 
 app.get("/documents",async(req,res) => {
     try {
-        const result = await pool.query('SELECT * FROM documents');
+        const result = await pool.query(`
+            SELECT id,name,created_at
+            FROM documents
+            ORDER BY created_at DESC
+        `);
         res.json(result.rows);
     }catch (err) {
         console.error(err);
@@ -46,48 +53,164 @@ app.get("/documents",async(req,res) => {
     }
 });
 
+app.get("/documents/:id/conversations", async (req, res) => {
+
+    try {
+
+        const documentId = Number(req.params.id);
+
+        if (!Number.isInteger(documentId) || documentId <= 0) {
+            return res.status(400).json({
+                error: "Invalid document id"
+            });
+        }
+
+        const result = await pool.query(`
+            SELECT question, answer, created_at
+            FROM conversations
+            WHERE document_id = $1
+            ORDER BY created_at ASC
+            `, [documentId]);
+
+        res.json(result.rows);
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error: "Error loading conversations"
+        });
+
+    }
+
+});
+
+app.delete("/documents/:id", async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const result = await pool.query(`
+            DELETE FROM documents
+            WHERE id = $1
+            RETURNING id`,
+            [id]
+        );
+
+        if(result.rowCount === 0){
+            return res.status(404).json({
+                error:"Document not found"
+            });
+        }
+
+        res.json({
+            message:"Document deleted"
+        });
+
+    }
+    catch(err){
+
+        console.error(err);
+
+        res.status(500).json({
+            error:"Error deleting document"
+        });
+    }
+
+});
+
 app.post("/documents/upload", upload.single("file"), async (req, res) => {
+
+    let client;
+
+    if (!req.file) {
+        return res.status(400).json({
+            error: "PDF file is required"
+        });
+    }
+
     try{
+
+        client = await pool.connect();
+
+        await client.query("BEGIN");
+        const fileHash = generateFileHash(req.file.buffer);
+
+        const existingDocument = await client.query(`
+            SELECT id
+            FROM documents
+            WHERE file_hash = $1`, [fileHash]
+        );
+
+        if (existingDocument.rows.length > 0) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({
+                error:"This document has already been uploaded"
+            });
+
+        }
+
         const parser = new PDFParse({data: req.file.buffer});
         const data = await parser.getText();
 
-        const result = await pool.query(
-            'INSERT INTO documents (name, text) VALUES ($1, $2) RETURNING id', [req.file.originalname, data.text]);
+        const result = await client.query(
+            `INSERT INTO documents (name, text,file_hash) VALUES ($1, $2, $3) RETURNING id`, [req.file.originalname, data.text,fileHash]);
 
         const documentId = result.rows[0].id;
 
         const chunks = chunkText(data.text,850,150);
 
         for(let i = 0; i < chunks.length; i++){
-            const chunkResult = await pool.query(
-                `INSERT INTO chunks (document_id, content, chunk_index)
-                 VALUES ($1, $2 ,$3) RETURNING id`, [documentId,chunks[i],i]);
-
-            const chunkId = chunkResult.rows[0].id;
-
             const embedding = await generateEmbedding(chunks[i])
 
-            await pool.query(
-                'UPDATE chunks SET embedding = $1 WHERE id = $2',
-                [`[${embedding.join(",")}]`, chunkId]
-            );
+            await client.query(`
+	            INSERT INTO chunks
+	            (document_id, content, chunk_index, embedding)
+	            VALUES ($1, $2, $3, $4)`,
+                [documentId, chunks[i], i, `[${embedding.join(",")}]`
+            ]);
 
             await new Promise(r => setTimeout(r, 200));
 
         }
 
+        await client.query("COMMIT");
 
-        res.status(200).send("File uploaded successfully!");
+        res.status(200).json({
+            id: documentId,
+            message: "File uploaded successfully"
+        });
+
     }catch(err){
+        if(client){
+            await client.query("ROLLBACK");
+        }
+
         console.error(err);
-        res.status(500).send("Error uploading file");
+
+        res.status(500).json({
+            error:"Error uploading file"
+        });
+    }
+    finally{
+        if(client){
+            client.release();
+        }
     }
 });
 
 app.post("/ask",askLimiter,async(req,res) => {
     try {
 
-        const { question } = req.body;
+        const { question, documentId } = req.body;
+
+        if (documentId == null) {
+            return res.status(400).json({
+                error:"Document is required"
+            });
+        }
 
         if (typeof question !== "string") {
             return res.status(400).json({
@@ -113,10 +236,18 @@ app.post("/ask",askLimiter,async(req,res) => {
 
         const chunkResult = await pool.query(`SELECT id, document_id, content, chunk_index
                                               FROM chunks
+                                              WHERE document_id = $2
                                               ORDER BY embedding <=> $1
-                                                  LIMIT 5;`, [vectorString])
+                                                  LIMIT 5;`, [vectorString,documentId])
 
         const chunks = chunkResult.rows
+
+        if(chunks.length === 0){
+            return res.json({
+                answer:"No information found in this document.",
+                sources:[]
+            });
+        }
 
 
         let context = "";
@@ -171,7 +302,7 @@ app.get("/conversations",async(req,res) => {
 
     try{
         const result = await pool.query(`
-            SELECT *
+            SELECT document_id, question, answer, created_at
             FROM conversations
             ORDER BY created_at ASC
         `);
@@ -231,4 +362,11 @@ async function generateEmbedding(text){
 
     return response.embeddings[0].values;
 
+}
+
+function generateFileHash(buffer) {
+    return crypto
+        .createHash("sha256")
+        .update(buffer)
+        .digest("hex");
 }
