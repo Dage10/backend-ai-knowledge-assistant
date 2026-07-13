@@ -19,19 +19,27 @@ const askLimiter = rateLimit({
 const express = require('express');
 const app = express();
 const cors = require('cors')
+const helmet = require("helmet");
 const corsOptions = {
-    origin:"http://localhost:3000"
+    origin: process.env.FRONTEND_URL,
+    credentials: true
 }
 app.use(express.json({
     limit: "1mb"
 }));
 app.use(cors(corsOptions))
+app.use(helmet());
+app.set("trust proxy", 1);
+
+const PORT = process.env.PORT || 3001;
 
 
-const port = 3001;
-
-
-const pool = new Pool({connectionString: process.env.DATABASE_URL});
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 app.get("/health", (req, res) => {
     res.status(200).send("OK");
@@ -326,8 +334,8 @@ const testConnection = async () => {
 async function startServer() {
     await testConnection();
 
-    app.listen(port, () => {
-        console.log(`Server is running on port ${port}`);
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
     });
 }
 
