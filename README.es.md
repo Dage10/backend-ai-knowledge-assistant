@@ -658,7 +658,7 @@ Algunas funcionalidades que podrían añadirse en futuras versiones:
 <img width="800" alt="Error 2" src="https://github.com/user-attachments/assets/a89b9520-1952-4360-8ab7-990aef9f9678" />
 <img width="800" alt="Subiendo" src="https://github.com/user-attachments/assets/84cd88ca-4956-44ad-ab82-fba3cca2697f" />
 <img width="800" alt="Subida correcta" src="https://github.com/user-attachments/assets/8aef26ad-1a6e-4063-8ce8-886571121770" />
-<img width="800" alt="Respuesta" src="https://github.com/user-attachments/assets/71cc71db-8cec-4ba0-8643-57a5e98cc43e" />
+<img width="800" alt="Respuesta" src="https://github.com/user-attachments/assets/8723dc7a-935f-437c-b661-888f5e771656" />
 <img width="800" alt="Persistencia conversacion" src="https://github.com/user-attachments/assets/775a91a9-3b45-4fc0-bdd3-0da19bc061e5" />
 <img width="800" alt="Delete" src="https://github.com/user-attachments/assets/70ea5206-c045-4369-8a2f-ad22fb83c8b4" />
 
