@@ -1,5 +1,5 @@
 🌍 Languages:
-**English** | [Español](README.es.md)
+[English](README.md) | [Español](README.es.md)
 
 # 🧠 AI Knowledge Assistant
 
@@ -646,7 +646,14 @@ Potential future enhancements include:
 
 # 📸 Screenshots
 
-
+<img width="800" alt="Home" src="https://github.com/user-attachments/assets/df3ed29d-1054-447a-a596-6b766a7df391" />
+<img width="800" alt="Error 1" src="https://github.com/user-attachments/assets/1cf41906-46a3-477e-9ca5-6ac01f0a77a3" />
+<img width="800" alt="Error 2" src="https://github.com/user-attachments/assets/a89b9520-1952-4360-8ab7-990aef9f9678" />
+<img width="800" alt="Question" src="https://github.com/user-attachments/assets/94360852-db9e-4264-805b-b62c779a6b8c" />
+<img width="800" alt="Uploading" src="https://github.com/user-attachments/assets/84cd88ca-4956-44ad-ab82-fba3cca2697f" />
+<img width="800" alt="Uploaded successfully" src="https://github.com/user-attachments/assets/8aef26ad-1a6e-4063-8ce8-886571121770" />
+<img width="800" alt="Response" src="https://github.com/user-attachments/assets/5dbcb753-d5a3-47a6-b514-f26d291e0e33" />
+<img width="800" alt="Conversation Persistence" src="https://github.com/user-attachments/assets/cb7865a1-5392-4790-9605-102cef7587f6" />
 
 ---
 
