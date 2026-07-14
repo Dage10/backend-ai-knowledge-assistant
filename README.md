@@ -654,6 +654,8 @@ Potential future enhancements include:
 <img width="800" alt="Uploaded successfully" src="https://github.com/user-attachments/assets/8aef26ad-1a6e-4063-8ce8-886571121770" />
 <img width="800" alt="Response" src="https://github.com/user-attachments/assets/5dbcb753-d5a3-47a6-b514-f26d291e0e33" />
 <img width="800" alt="Conversation Persistence" src="https://github.com/user-attachments/assets/cb7865a1-5392-4790-9605-102cef7587f6" />
+<img width="800" alt="Delete" src="https://github.com/user-attachments/assets/70ea5206-c045-4369-8a2f-ad22fb83c8b4" />
+
 
 ---
 
