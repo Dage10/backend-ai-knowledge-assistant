@@ -286,11 +286,22 @@ frontend/
 
 backend/
 
-├── index.js
-
+├── server.js
+├── app.js
 ├── package.json
-
-└── ...
+├── config/
+|   ├── db.js
+|   ├── ai.js
+├── middlewares/
+|   ├── upload.js
+|   ├── rateLimiters.js
+├── routes/
+|   ├── ask.routes.js
+|   ├── documents.routes.js
+├── utils/
+|   ├── chunking.js
+|   ├── embeddings.js
+|   ├── hash.js
 
 ```
 

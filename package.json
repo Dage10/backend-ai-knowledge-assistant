@@ -5,9 +5,9 @@
   "license": "ISC",
   "author": "David Gelmà Corral",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
@@ -20,5 +20,8 @@
     "multer": "^2.2.0",
     "pdf-parse": "^2.4.5",
     "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }
